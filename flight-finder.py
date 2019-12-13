@@ -6,15 +6,19 @@ import asyncio
 
 
 async def main():
-    args = parse_args()
+    res = parse_args()
+    if res:
+        args = res
+    else:
+        args = get_args()
     if args:
-        from_city_code = await get_city_code(args['from'])
+        from_city_code = await get_city_code(args['city_from'])
         if from_city_code is None:
-            print(f'\x1b[1;31m City code for {args["from"]} not found \x1b[0m')
+            print(f'\x1b[1;31m City code for {args["city_from"]} not found \x1b[0m')
             return
-        to_city_code = await get_city_code(args['to'])
+        to_city_code = await get_city_code(args['city_to'])
         if to_city_code is None:
-            print(f'\x1b[1;31m City code for {args["to"]} not found \x1b[0m')
+            print(f'\x1b[1;31m City code for {args["city_to"]} not found \x1b[0m')
             return
         airlines = await get_airline_codes()
         flights = await get_flights(from_city_code, to_city_code, args)
@@ -38,12 +42,15 @@ async def main():
             for detail in route_details:
                 print(detail)
             print('\n')
+    else:
+        print('\x1b[3;31m !!! Invalid options !!!\x1b[0m \n\x1b[1m Try \'./flight-finder --help\' for more detail \x1b[0m')
+        return
 
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--origin', '-o', help='The city of departure.', type=str, required=True)
-    parser.add_argument('--destination', '-d', help='The destination city.', type=str, required=True)
+    parser.add_argument('--origin', '-o', help='The city of departure.', type=str)
+    parser.add_argument('--destination', '-d', help='The destination city.', type=str)
     parser.add_argument('--date_from', '-f', help='Start of departure date range. default TODAY', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date(), default=datetime.today())
     parser.add_argument('--date_to', '-t', help='End of departure date range. default TOMORROW', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
     parser.add_argument('--return_from', help='Start of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
@@ -54,26 +61,73 @@ def parse_args():
     args = parser.parse_args()
     result = {}
     if args.origin and args.destination:
-        result['from'] = args.origin
-        result['to'] = args.destination
+        result['city_from'] = args.origin
+        result['city_to'] = args.destination
     else:
-        print('\x1b[3;31m !!! Invalid options !!!\x1b[0m \n\x1b[1m Try \'./flight-finder --help\' for more detail \x1b[0m')
-        return
-    if args.limit:
-        result['limit'] = args.limit
-    if args.max_price:
-        result['max_price'] = args.max_price
+        return None
     if args.date_from:
         result['date_from'] = args.date_from
         result['date_to'] = (args.date_from + timedelta(days=1))
     if args.date_to:
         result['date_to'] = args.date_to
-    if args.direct:
-        result['direct'] = args.direct
     if args.return_from:
         result['return_from'] = args.return_from
+        result['return_to'] = (args.return_from + timedelta(days=1))
     if args.return_to:
         result['return_to'] = args.return_to
+    if args.max_price:
+        result['max_price'] = args.max_price
+    if args.direct:
+        result['direct'] = args.direct
+    if args.limit:
+        result['limit'] = args.limit
+    return result
+
+
+def get_args():
+    city_from = None
+    city_to = None
+    return_from = return_to = max_price = None
+    while not city_from:
+        city_from = input(' Enter the origin city: ')
+    while not city_to:
+        city_to = input(' Enter the destination city: ')
+    idate_from = input(' Start departure date range (dd/mm/yyyy) (skippable): ')
+    if idate_from:
+        date_from = str_to_date(idate_from)
+    else:
+        date_from = datetime.today()
+    date_to = (date_from + timedelta(days=1))
+    idate_to = input(' End departure date range (dd/mm/yyyy) (skippable): ')
+    if idate_to:
+        date_to = str_to_date(idate_to)
+    ireturn_from = input(' Start return date range (dd/mm/yyyy) (skippable): ')
+    if ireturn_from:
+        return_from = str_to_date(ireturn_from)
+        return_to = (return_from + timedelta(days=1))
+    ireturn_to = input(' End return date range (dd/mm/yyyy) (skippable): ')
+    if ireturn_to:
+        return_to = str_to_date(ireturn_to)
+    imax_price = input(' Maximum price (USD) (skippable): ')
+    if imax_price and imax_price.isnumeric():
+        max_price = int(imax_price)
+    idirect = input(' Is direct flights only (y/n) (skippable): ')
+    if idirect:
+        direct = str_to_bool(idirect)
+    else:
+        direct = False
+    ilimit = input(' Max number of results (skippable): ')
+    if ilimit and ilimit.isnumeric():
+        limit = int(ilimit)
+    else:
+        limit = 10
+    result = {'city_from': city_from, 'city_to': city_to, 'date_from': date_from, 'date_to': date_to, 'direct': direct, 'limit': limit}
+    if max_price:
+        result['max_price'] = max_price
+    if return_from:
+        result['return_from'] = return_from
+    if return_to:
+        result['return_to'] = return_to
     return result
 
 
@@ -96,17 +150,16 @@ async def get_city_code(city):
 async def get_flights(from_city, to_city, optional_params):
     date_from = optional_params['date_from'].strftime('%d/%m/%Y')
     date_to = optional_params['date_to'].strftime('%d/%m/%Y')
-    limit = optional_params['limit'] if 'limit' in optional_params else 10
+    limit = optional_params['limit']
+    direct = 1 if optional_params['direct'] else 0
     URL = 'https://api.skypicker.com/flights'
-    PARAMS = {'flyFrom': from_city, 'to': to_city, 'dateFrom': date_from, 'date_to': date_to, 'partner': 'picky', 'limit': limit}
+    PARAMS = {'flyFrom': from_city, 'to': to_city, 'dateFrom': date_from, 'date_to': date_to, 'partner': 'picky', 'direct_flights': direct, 'limit': limit}
     if 'max_price' in optional_params:
         PARAMS['max_price'] = optional_params['max_price']
     if 'return_from' in optional_params:
         PARAMS['return_from'] = optional_params['return_from'].strftime('%d/%m/%Y')
     if 'return_to' in optional_params:
         PARAMS['return_to'] = optional_params['return_to'].strftime('%d/%m/%Y')
-    if 'direct' in optional_params:
-        PARAMS['direct_flights'] = 1 if optional_params['direct'] else 0
     async with aiohttp.ClientSession() as session:
         loading_task = asyncio.create_task(loader(f'Searching for affordable flight from {from_city} to {to_city}...'))
         resp = await fetch(session, URL, PARAMS)
@@ -164,17 +217,6 @@ async def loader(text):
         await asyncio.sleep(0.3)
 
 
-def print_format_table():
-    for style in range(8):
-        for fg in range(30, 38):
-            s1 = ''
-            for bg in range(40, 48):
-                format = ';'.join([str(style), str(fg), str(bg)])
-                s1 += '\x1b[%sm %s \x1b[0m' % (format, format)
-            print(s1)
-        print('\n')
-
-
 def str_to_bool(v):
     if isinstance(v, bool):
         return v
@@ -184,6 +226,15 @@ def str_to_bool(v):
         return False
     else:
         raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
+def str_to_date(v):
+    try:
+        date = datetime.strptime(v, '%d/%m/%Y').date()
+        return date
+    except:
+        print('\x1b[1;31m Invalid date... \x1b[0')
+        return None
 
 
 if __name__ == '__main__':

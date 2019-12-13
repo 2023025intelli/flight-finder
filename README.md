@@ -25,6 +25,12 @@ pip install -r requirements.txt
 Run the script
 
 ```sh
-./flight-finder --origin Bishkek --destination Los-Angeles
+./flight-finder.py
+```
+
+Or run it with arguments
+
+```sh
+./flight-finder.py --origin Bishkek --destination Los-Angeles
 ```
 

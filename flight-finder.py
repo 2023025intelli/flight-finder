@@ -33,7 +33,7 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('--origin', '-o', help='The city of departure.', type=str, required=True)
     parser.add_argument('--destination', '-d', help='The destination city.', type=str, required=True)
-    parser.add_argument('--date_from', '-f', help='Start of departure date range. default NOW', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date(), default=datetime.today())
+    parser.add_argument('--date_from', '-f', help='Start of departure date range. default TODAY', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date(), default=datetime.today())
     parser.add_argument('--date_to', '-t', help='End of departure date range. default TOMORROW', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
     # parser.add_argument('--return_from', help='Start of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
     # parser.add_argument('--return_to', help='End of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())

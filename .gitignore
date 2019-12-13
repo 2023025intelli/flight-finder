@@ -1,0 +1,8 @@
+# Environments
+venv/
+env/
+.env
+.venv
+
+# PyCharm stuff
+.idea/

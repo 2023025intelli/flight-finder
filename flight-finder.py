@@ -22,11 +22,22 @@ async def main():
             print(f'\x1b[1m No flights found \x1b[0m')
             return
         for flight in flights:
-            airline = next((item['name'] for item in airlines if item['id'] == flight['airline']), None)
-            print(f'\x1b[1m {flight["cityFrom"]}\x1b[0m \x1b[1;32m->\x1b[0m \x1b[1m{flight["cityTo"]}\x1b[0m \x1b[1;32m|\x1b[0m '
-                  f'\x1b[1m{airline}\x1b[0m \x1b[1;32m|\x1b[0m \x1b[1m{flight["price"]}$\x1b[0m \x1b[1;32m|\x1b[0m '
-                  f'\x1b[1m{flight["dTime"].strftime("%a %d/%m/%Y %H:%M")}\x1b[0m \x1b[1;32m|\x1b[0m '
-                  f'\x1b[1m({flight["duration"]})\x1b[0m \x1b[1;32m|\x1b[0m \x1b[1m{(flight["seats"])} seats left\x1b[0m ')
+            flight_detail = f'\x1b[1m {flight["cityFrom"]}\x1b[0m \x1b[1;32m->\x1b[0m \x1b[1m{flight["cityTo"]}\x1b[0m \x1b[1;32m|\x1b[0m ' \
+                            f'\x1b[1m{flight["price"]}$\x1b[0m \x1b[1;32m|\x1b[0m \x1b[1m{(flight["seats"])} seats left\x1b[0m ' \
+                            f'\x1b[1;32m|\x1b[0m \x1b[1mFlight duration ({flight["duration"]})\x1b[0m '
+            if 'return_duration' in flight and flight['return_duration']:
+                flight_detail += f'\x1b[1;32m|\x1b[0m \x1b[1mReturn duration ({flight["return_duration"]})\x1b[0m '
+            route_details = []
+            for route in flight['routes']:
+                airline = next((item['name'] for item in airlines if item['id'] == route['airline']), None)
+                route_detail = f'    \x1b[1m {route["cityFrom"]}\x1b[0m \x1b[1;32m->\x1b[0m \x1b[1m{route["cityTo"]}\x1b[0m \x1b[1;32m|\x1b[0m ' \
+                               f'\x1b[1m{airline}\x1b[0m \x1b[1;32m|\x1b[0m \x1b[1mDeparture {route["dTime"].strftime("%a %d/%m/%Y %H:%M")}\x1b[0m ' \
+                               f'\x1b[1;32m|\x1b[0m \x1b[1mArrival {route["aTime"].strftime("%a %d/%m/%Y %H:%M")}\x1b[0m \x1b[1;32m|\x1b[0m '
+                route_details.append(route_detail)
+            print(flight_detail)
+            for detail in route_details:
+                print(detail)
+            print('\n')
 
 
 def parse_args():
@@ -35,8 +46,9 @@ def parse_args():
     parser.add_argument('--destination', '-d', help='The destination city.', type=str, required=True)
     parser.add_argument('--date_from', '-f', help='Start of departure date range. default TODAY', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date(), default=datetime.today())
     parser.add_argument('--date_to', '-t', help='End of departure date range. default TOMORROW', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
-    # parser.add_argument('--return_from', help='Start of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
-    # parser.add_argument('--return_to', help='End of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
+    parser.add_argument('--return_from', help='Start of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
+    parser.add_argument('--return_to', help='End of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
+    parser.add_argument('--direct', help='Search for direct flights only. default False', type=str_to_bool, default=False)
     parser.add_argument('--max_price', '-m', help='Maximum price of ticket.', type=int)
     parser.add_argument('--limit', '-l', help='Max number of search results. default 10', type=int, default=10)
     args = parser.parse_args()
@@ -44,30 +56,24 @@ def parse_args():
     if args.origin and args.destination:
         result['from'] = args.origin
         result['to'] = args.destination
-        # print(f'\x1b[1m From: {args.origin} \x1b[0m')
-        # print(f'\x1b[1m To: {args.destination} \x1b[0m')
     else:
         print('\x1b[3;31m !!! Invalid options !!!\x1b[0m \n\x1b[1m Try \'./flight-finder --help\' for more detail \x1b[0m')
         return
     if args.limit:
         result['limit'] = args.limit
-        # print(f'\x1b[1m Limit: {args.limit} \x1b[0m')
     if args.max_price:
         result['max_price'] = args.max_price
-        # print(f'\x1b[1m Max price: {args.max_price} \x1b[0m')
     if args.date_from:
         result['date_from'] = args.date_from
         result['date_to'] = (args.date_from + timedelta(days=1))
-        # print(f'\x1b[1m Date from: {args.date_from} \x1b[0m')
     if args.date_to:
         result['date_to'] = args.date_to
-        # print(f'\x1b[1m Date to: {args.date_to} \x1b[0m')
-    # if args.return_from:
-    #     result['return_from'] = args.return_from
-        # print(f'\x1b[1m Return from: {args.return_from} \x1b[0m')
-    # if args.return_to:
-    #     result['return_to'] = args.return_to
-        # print(f'\x1b[1m Return to: {args.return_from} \x1b[0m')
+    if args.direct:
+        result['direct'] = args.direct
+    if args.return_from:
+        result['return_from'] = args.return_from
+    if args.return_to:
+        result['return_to'] = args.return_to
     return result
 
 
@@ -99,6 +105,8 @@ async def get_flights(from_city, to_city, optional_params):
         PARAMS['return_from'] = optional_params['return_from'].strftime('%d/%m/%Y')
     if 'return_to' in optional_params:
         PARAMS['return_to'] = optional_params['return_to'].strftime('%d/%m/%Y')
+    if 'direct' in optional_params:
+        PARAMS['direct_flights'] = 1 if optional_params['direct'] else 0
     async with aiohttp.ClientSession() as session:
         loading_task = asyncio.create_task(loader(f'Searching for affordable flight from {from_city} to {to_city}...'))
         resp = await fetch(session, URL, PARAMS)
@@ -114,11 +122,20 @@ async def get_flights(from_city, to_city, optional_params):
                 flight['cityTo'] = data['cityTo']
                 flight['countryTo'] = data['countryTo']['name']
                 flight['duration'] = data['fly_duration']
-                flight['dTime'] = datetime.fromtimestamp(data['dTime'])
-                flight['aTime'] = datetime.fromtimestamp(data['aTime'])
+                flight['return_duration'] = data['return_duration'] if 'return_duration' in data else None
                 flight['distance'] = data['distance']
                 flight['seats'] = data['availability']['seats'] or 0
-                flight['airline'] = data['route'][0]['airline']
+                flight['routes'] = []
+                routes = data['route']
+                for route in routes:
+                    item = {}
+                    item['airline'] = route['airline']
+                    item['dTime'] = datetime.fromtimestamp(route['dTime'])
+                    item['aTime'] = datetime.fromtimestamp(route['aTime'])
+                    item['cityFrom'] = route['cityFrom']
+                    item['cityTo'] = route['cityTo']
+                    item['flight_no'] = route['flight_no']
+                    flight['routes'].append(item)
                 flights.append(flight)
             return flights
 
@@ -144,7 +161,7 @@ async def loader(text):
         loading_char = loading_chars[index % 4]
         print(f'\x1b[1;33m {text} {loading_char} \x1b[0m', end='\r')
         index += 1
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(0.3)
 
 
 def print_format_table():
@@ -156,6 +173,17 @@ def print_format_table():
                 s1 += '\x1b[%sm %s \x1b[0m' % (format, format)
             print(s1)
         print('\n')
+
+
+def str_to_bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 
 if __name__ == '__main__':

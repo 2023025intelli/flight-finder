@@ -1,5 +1,6 @@
 #! ./venv/bin/python
 from datetime import datetime, timedelta
+from contextlib import suppress
 import argparse
 import aiohttp
 import asyncio
@@ -26,22 +27,32 @@ async def main():
             print(f'\x1b[1m No flights found \x1b[0m')
             return
         for flight in flights:
-            flight_detail = f'\x1b[1m {flight["cityFrom"]}\x1b[0m \x1b[1;32m->\x1b[0m \x1b[1m{flight["cityTo"]}\x1b[0m \x1b[1;32m|\x1b[0m ' \
+            flight_detail_str = f' {flight["cityFrom"]} -> {flight["cityTo"]} | {flight["price"]} | {(flight["seats"])} seats left | Flight duration ({flight["duration"]}) '
+            flight_detail = f'\x1b[1;33m|\x1b[0m\x1b[1m {flight["cityFrom"]}\x1b[0m \x1b[1;32m->\x1b[0m \x1b[1m{flight["cityTo"]}\x1b[0m \x1b[1;32m|\x1b[0m ' \
                             f'\x1b[1m{flight["price"]}$\x1b[0m \x1b[1;32m|\x1b[0m \x1b[1m{(flight["seats"])} seats left\x1b[0m ' \
                             f'\x1b[1;32m|\x1b[0m \x1b[1mFlight duration ({flight["duration"]})\x1b[0m '
             if 'return_duration' in flight and flight['return_duration']:
+                flight_detail_str += f'| Return duration ({flight["return_duration"]}) '
                 flight_detail += f'\x1b[1;32m|\x1b[0m \x1b[1mReturn duration ({flight["return_duration"]})\x1b[0m '
+            max_len = flight_detail_str.__len__()
             route_details = []
             for route in flight['routes']:
                 airline = next((item['name'] for item in airlines if item['id'] == route['airline']), None)
-                route_detail = f'    \x1b[1m {route["cityFrom"]}\x1b[0m \x1b[1;32m->\x1b[0m \x1b[1m{route["cityTo"]}\x1b[0m \x1b[1;32m|\x1b[0m ' \
-                               f'\x1b[1m{airline}\x1b[0m \x1b[1;32m|\x1b[0m \x1b[1mDeparture {route["dTime"].strftime("%a %d/%m/%Y %H:%M")}\x1b[0m ' \
-                               f'\x1b[1;32m|\x1b[0m \x1b[1mArrival {route["aTime"].strftime("%a %d/%m/%Y %H:%M")}\x1b[0m \x1b[1;32m|\x1b[0m '
+                detail_len = f'     {route["cityFrom"]} -> {route["cityTo"]} | {airline} | Departure {route["dTime"].strftime("%a %d/%m/%Y %H:%M")} | Arrival {route["aTime"].strftime("%a %d/%m/%Y %H:%M")} '.__len__()
+                if detail_len > max_len:
+                    max_len = detail_len
+                route_detail = {'str': f'\x1b[1;33m|\x1b[0m    \x1b[1m {route["cityFrom"]}\x1b[0m \x1b[1;32m->\x1b[0m \x1b[1m{route["cityTo"]}\x1b[0m \x1b[1;32m|\x1b[0m '
+                               f'\x1b[1m{airline}\x1b[0m \x1b[1;32m|\x1b[0m \x1b[1mDeparture {route["dTime"].strftime("%a %d/%m/%Y %H:%M")}\x1b[0m '
+                               f'\x1b[1;32m|\x1b[0m \x1b[1mArrival {route["aTime"].strftime("%a %d/%m/%Y %H:%M")}\x1b[0m ', 'len': detail_len}
                 route_details.append(route_detail)
-            print(flight_detail)
+            print('\x1b[1;33m' + '-' * (max_len + 2) + '\x1b[0m')
+            flight_detail += ' ' * (max_len - flight_detail_str.__len__() - 1) + '\x1b[1;33m|\x1b[0m'
+            print(f'{flight_detail}')
+            print('\x1b[1;33m' + '-' * (max_len + 2) + '\x1b[0m')
             for detail in route_details:
-                print(detail)
-            print('\n')
+                detail['str'] += ' ' * (max_len - detail['len']) + '\x1b[1;33m|\x1b[0m'
+                print(detail['str'])
+            print('\x1b[1;33m' + '-' * (max_len + 2) + '\x1b[0m')
     else:
         print('\x1b[1;31m !!! Invalid options !!!\x1b[0m \n\x1b[1m Try \'./flight-finder --help\' for more detail \x1b[0m')
         return
@@ -70,11 +81,15 @@ def parse_args():
         result['date_to'] = (args.date_from + timedelta(days=1))
     if args.date_to:
         result['date_to'] = args.date_to
+        if not args.date_from:
+            result['date_from'] = (args.date_to - timedelta(days=7))
     if args.return_from:
         result['return_from'] = args.return_from
         result['return_to'] = (args.return_from + timedelta(days=1))
     if args.return_to:
         result['return_to'] = args.return_to
+        if not args.return_from:
+            result['return_from'] = (args.return_to - timedelta(days=7))
     if args.max_price:
         result['max_price'] = args.max_price
     if args.direct:
@@ -103,6 +118,8 @@ def get_args():
     idate_to = input(' End departure date range (dd/mm/yyyy) (skippable): ')
     if idate_to:
         date_to = str_to_date(idate_to)
+        if not idate_from and date_to:
+            date_from = (date_to - timedelta(days=7))
     ireturn_from = input(' Start return date range (dd/mm/yyyy) (skippable): ')
     if ireturn_from:
         return_from = str_to_date(ireturn_from)
@@ -110,6 +127,8 @@ def get_args():
     ireturn_to = input(' End return date range (dd/mm/yyyy) (skippable): ')
     if ireturn_to:
         return_to = str_to_date(ireturn_to)
+        if not ireturn_from and return_to:
+            return_from = (return_to - timedelta(days=7))
     imax_price = input(' Maximum price (USD) (skippable): ')
     if imax_price and imax_price.isnumeric():
         max_price = int(imax_price)
@@ -242,4 +261,16 @@ def str_to_date(v):
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
+
+    # pending = asyncio.all_tasks()
+    # loop.run_until_complete(asyncio.gather(*pending))
+
+    # Cancel all pending tasks
+    # pending = asyncio.Task.all_tasks()
+    # for task in pending:
+    #     task.cancel()
+    #     with suppress(asyncio.CancelledError):
+    #         loop.run_until_complete(task)
+
     loop.close()
+    input("Press the enter key to exit...")

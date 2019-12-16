@@ -43,7 +43,7 @@ async def main():
                 print(detail)
             print('\n')
     else:
-        print('\x1b[3;31m !!! Invalid options !!!\x1b[0m \n\x1b[1m Try \'./flight-finder --help\' for more detail \x1b[0m')
+        print('\x1b[1;31m !!! Invalid options !!!\x1b[0m \n\x1b[1m Try \'./flight-finder --help\' for more detail \x1b[0m')
         return
 
 
@@ -79,6 +79,8 @@ def parse_args():
         result['max_price'] = args.max_price
     if args.direct:
         result['direct'] = args.direct
+    else:
+        result['direct'] = False
     if args.limit:
         result['limit'] = args.limit
     return result

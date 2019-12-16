@@ -1,17 +1,12 @@
 #! ./venv/bin/python
 from datetime import datetime, timedelta
-from contextlib import suppress
 import argparse
 import aiohttp
 import asyncio
 
 
 async def main():
-    res = parse_args()
-    if res:
-        args = res
-    else:
-        args = get_args()
+    args = parse_args()
     if args:
         from_city_code = await get_city_code(args['city_from'])
         if from_city_code is None:
@@ -75,7 +70,7 @@ def parse_args():
         result['city_from'] = args.origin
         result['city_to'] = args.destination
     else:
-        return None
+        return get_args()
     if args.date_from:
         result['date_from'] = args.date_from
         result['date_to'] = (args.date_from + timedelta(days=1))
@@ -261,6 +256,7 @@ def str_to_date(v):
 if __name__ == '__main__':
     loop = asyncio.get_event_loop()
     loop.run_until_complete(main())
+    loop.close()
 
     # pending = asyncio.all_tasks()
     # loop.run_until_complete(asyncio.gather(*pending))
@@ -272,5 +268,4 @@ if __name__ == '__main__':
     #     with suppress(asyncio.CancelledError):
     #         loop.run_until_complete(task)
 
-    loop.close()
     input("Press the enter key to exit...")

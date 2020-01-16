@@ -61,7 +61,7 @@ def parse_args():
     parser.add_argument('--date_to', '-t', help='End of departure date range. default TOMORROW', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
     parser.add_argument('--return_from', help='Start of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
     parser.add_argument('--return_to', help='End of arrival date range.', type=lambda d: datetime.strptime(d, '%d/%m/%Y').date())
-    parser.add_argument('--direct', help='Search for direct flights only. default False', type=str_to_bool, default=False)
+    parser.add_argument('--direct', help='Search for direct flights only. default False', action='store_true')
     parser.add_argument('--max_price', '-m', help='Maximum price of ticket.', type=int)
     parser.add_argument('--limit', '-l', help='Max number of search results. default 10', type=int, default=10)
     args = parser.parse_args()

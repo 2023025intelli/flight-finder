@@ -104,35 +104,35 @@ def get_args():
         city_from = input(' Enter the origin city: ')
     while not city_to:
         city_to = input(' Enter the destination city: ')
-    idate_from = input(' Start departure date range (dd/mm/yyyy) (skippable): ')
+    idate_from = input(' Start departure date range (dd/mm/yyyy) (optional): ')
     if idate_from:
         date_from = str_to_date(idate_from)
     else:
         date_from = datetime.today()
     date_to = (date_from + timedelta(days=1))
-    idate_to = input(' End departure date range (dd/mm/yyyy) (skippable): ')
+    idate_to = input(' End departure date range (dd/mm/yyyy) (optional): ')
     if idate_to:
         date_to = str_to_date(idate_to)
         if not idate_from and date_to:
             date_from = (date_to - timedelta(days=7))
-    ireturn_from = input(' Start return date range (dd/mm/yyyy) (skippable): ')
+    ireturn_from = input(' Start return date range (dd/mm/yyyy) (optional): ')
     if ireturn_from:
         return_from = str_to_date(ireturn_from)
         return_to = (return_from + timedelta(days=1))
-    ireturn_to = input(' End return date range (dd/mm/yyyy) (skippable): ')
+    ireturn_to = input(' End return date range (dd/mm/yyyy) (optional): ')
     if ireturn_to:
         return_to = str_to_date(ireturn_to)
         if not ireturn_from and return_to:
             return_from = (return_to - timedelta(days=7))
-    imax_price = input(' Maximum price (USD) (skippable): ')
+    imax_price = input(' Maximum price (USD) (optional): ')
     if imax_price and imax_price.isnumeric():
         max_price = int(imax_price)
-    idirect = input(' Is direct flights only (y/n) (skippable): ')
+    idirect = input(' Is direct flights only (y/n) (optional): ')
     if idirect:
         direct = str_to_bool(idirect)
     else:
         direct = False
-    ilimit = input(' Max number of results (skippable): ')
+    ilimit = input(' Max number of results (optional): ')
     if ilimit and ilimit.isnumeric():
         limit = int(ilimit)
     else:
